@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# FastAPI static/media folders (if used)
+static/
+media/
+
+# pipenv
+Pipfile.lock
+
+# mypy
+.mypy_cache/
+
+# Pytest
+.pytest_cache/
+
+# IDEs
+.idea/
+*.swp
+
+# dotenv
+.env
+.env.local
+.env.production
+.env.staging
+.env.testing
+
+# Build
+build/
+dist/
+*.egg-info/

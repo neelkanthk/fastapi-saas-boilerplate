@@ -1,0 +1,35 @@
+version: "3.9"
+services:
+  fastapi: # Your FastAPI service
+    build: . # Path to your Dockerfile
+    ports:
+      - "8000:8000" # Map port 8000 of the container to port 8000 on the host
+    depends_on:
+      - database # Ensure the database service starts before FastAPI
+    environment:
+      DB_DRIVER: "postgresql"
+      DB_HOST: "database"
+      DB_PORT: "5432"
+      DB_USERNAME: "postgres"
+      DB_PASSWORD: "pAsSwOrD2025"
+      DB_NAME: "fastapi_boilerplate_db"
+      OAUTH2_SECRET_KEY: "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+      OAUTH2_ALGORITHM: "HS256"
+      OAUTH2_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    volumes:
+      # Mount the current directory to /app in the container (read-only for security) so that we do not need to run docker build again and again
+      - .:/app:ro
+    # Run migrations and start the FastAPI server with reload for development
+    command: /bin/bash -c "alembic upgrade head && uvicorn main:app --host=0.0.0.0 --port=8000 --reload"
+  database: # Your PostgreSQL database service
+    image: postgres:15 # Use the official PostgreSQL image
+    environment: # Set environment variables for PostgreSQL
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pAsSwOrD2025
+      POSTGRES_DB: fastapi_boilerplate_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data in a named volume
+    ports:
+      - "5432:5432" # Map port 5432 of the container to port 5432 on the host
+volumes:
+  postgres_data:

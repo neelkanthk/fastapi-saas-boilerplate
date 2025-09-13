@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  fastapi: # Your FastAPI service
+    image: dockerhub-image-name # Use the production image built from your Dockerfile for production
+    ports:
+      - "80:8000" # Map port 8000 of the container to port 80 on the host
+    depends_on:
+      - db # Ensure the database service starts before FastAPI
+    environment:
+      DB_DRIVER: "postgresql"
+      DB_HOST: ${DB_HOST}"
+      DB_PORT: ${DB_PORT}"
+      DB_USERNAME: ${DB_USERNAME}"
+      DB_PASSWORD: ${DB_PASSWORD}"
+      DB_NAME: ${DB_NAME}"
+      OAUTH2_SECRET_KEY: ${OAUTH2_SECRET_KEY}"
+      OAUTH2_ALGORITHM: ${OAUTH2_ALGORITHM}"
+      OAUTH2_ACCESS_TOKEN_EXPIRE_MINUTES: ${OAUTH2_ACCESS_TOKEN_EXPIRE_MINUTES}"
+  db:
+    image: postgres:15 # Use the official PostgreSQL image
+    environment: # Set environment variables for PostgreSQL
+      POSTGRES_USER: ${POSTGRES_USER}"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}"
+      POSTGRES_DB: ${DB_NAME}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data in a named volume
+    ports:
+      - "5432:5432" # Map port 5432 of the container to port 5432 on the host
+volumes:
+  postgres_data:
