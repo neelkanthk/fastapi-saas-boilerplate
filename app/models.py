@@ -1,5 +1,5 @@
 from app.config.database import Base
-from sqlalchemy import Column, INTEGER, VARCHAR, TEXT, BOOLEAN, TIMESTAMP, ForeignKey, Enum, JSON, Float
+from sqlalchemy import Column, INTEGER, VARCHAR, TEXT, BOOLEAN, TIMESTAMP, ForeignKey, Enum, JSON, NUMERIC
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -9,6 +9,7 @@ class User(Base):
     id = Column(INTEGER, primary_key=True, nullable=False)
     email = Column(VARCHAR(255), nullable=False, unique=True)
     password = Column(VARCHAR(255), nullable=False)
+    role = Column(VARCHAR(50), Enum('member', 'admin', name='user_role_enum'), nullable=False, server_default='member')
     is_verified = Column(BOOLEAN, nullable=False, server_default='false')
     last_login_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
@@ -82,21 +83,43 @@ class UserVerificationToken(Base):
         return self
 
 
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id = Column(INTEGER, primary_key=True, index=True)
+    name = Column(Enum('free', 'pro', 'enterprise', name='plan_name_enum'), nullable=False, server_default='free')
+    description = Column(VARCHAR(255), nullable=True)
+    price = Column(VARCHAR(100), nullable=True)
+    features = Column(JSON, nullable=True)
+    is_active = Column(BOOLEAN, default=True, nullable=False)
+
+
 class Subscription(Base):
     __tablename__ = 'subscriptions'
 
     id = Column(INTEGER, primary_key=True, nullable=False)
     user_id = Column(INTEGER, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    sub_type = Column(Enum('free', 'pro', name='subscription_type_enum'), nullable=False, server_default='free')
+    plan_id = Column(INTEGER, ForeignKey('plans.id', ondelete="SET NULL"), nullable=False)
     status = Column(Enum('active', 'inactive', 'canceled', 'past_due', name='subscription_status_enum'),
                     nullable=False, server_default='inactive')
     start_date = Column(TIMESTAMP(timezone=True), nullable=True)
     end_date = Column(TIMESTAMP(timezone=True), nullable=True)
-    max_domains = Column(INTEGER, nullable=False, server_default='1')
-    max_scans_per_month = Column(INTEGER, nullable=False, server_default='5')
-
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(INTEGER, primary_key=True, index=True)
+    user_id = Column(INTEGER, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    subscription_id = Column(INTEGER, ForeignKey("subscriptions.id", ondelete="SET NULL"), nullable=True)
+    amount = Column(NUMERIC(10, 2), nullable=False)
+    currency = Column(VARCHAR(10), nullable=False, default="usd")
+    status = Column(Enum('paid', 'failed', 'refunded', name='payment_status_enum'), nullable=True)
+    invoice_url = Column(VARCHAR(500), nullable=True)
+    paid_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
 
 
 class Notification(Base):
