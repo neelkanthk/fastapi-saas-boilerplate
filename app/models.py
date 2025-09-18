@@ -33,6 +33,15 @@ class UserSession(Base):
     ip_address = Column(VARCHAR(255), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
 
+    def is_valid(self, refresh_token: str):
+        if (
+            self.refresh_token == refresh_token
+            and self.refresh_token_expiry > datetime.now(timezone.utc)
+        ):
+            return True
+        else:
+            return False
+
 
 class UserProfile(Base):
     __tablename__ = 'user_profiles'

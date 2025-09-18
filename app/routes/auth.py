@@ -74,23 +74,34 @@ def login(creds: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(da
 # Endpoint to refresh access token
 @router.post('/refresh', response_model=Token)
 def refresh_token(payload: RefreshTokenRequest, db: Session = Depends(database.get_db)):
-    # Find user by refresh token
-    user = db.query(User).filter(User.refresh_token == payload.refresh_token).first()
-    if not user or not user.refresh_token or not user.refresh_token_expiry:
+
+    session = db.query(UserSession).filter(UserSession.refresh_token == payload.refresh_token).first()
+    if not session.is_valid(refresh_token=payload.refresh_token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-    # Check expiry
-    if user.refresh_token_expiry < datetime.now(timezone.utc):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
     # Verify token
     user_id = auth_utility.verify_refresh_token(payload.refresh_token)
+    # Find user by refresh token
+    user = session.user
+    print(user)
     if str(user.id) != str(user_id):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    # Invalidate session
+    session.refresh_token = None
+    session.refresh_token_expiry = None
+
     # Issue new tokens
     access_token = auth_utility.create_access_token(data={"user_id": str(user.id)})
     new_refresh_token, new_refresh_expiry = auth_utility.create_refresh_token(data={"user_id": str(user.id)})
-    user.refresh_token = new_refresh_token
-    user.refresh_token_expiry = new_refresh_expiry
-    db.add(user)
+    user.sessions.append(
+        UserSession(
+            refresh_token=new_refresh_token,
+            refresh_token_expiry=new_refresh_expiry,
+            device_info=None,
+            ip_address=None
+        )
+    )
+    # db.add(user)
     try:
         db.commit()
     except Exception as e:
@@ -125,8 +136,6 @@ def verify_email(db: Session = Depends(database.get_db), token: str = None):
 # invalidate the user's refresh token in the database, so it cannot be used to obtain new access tokens.
 @router.post('/logout', status_code=200)
 def logout(db: Session = Depends(database.get_db), current_user: User = Depends(auth_utility.get_current_user)):
-    # current_user.refresh_token = None
-    # current_user.refresh_token_expiry = None
     for session in current_user.sessions:
         session.refresh_token = None
         session.refresh_token_expiry = None
