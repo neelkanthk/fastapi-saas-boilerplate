@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from app.schemas.auth import TokenData
 from fastapi.security import OAuth2PasswordBearer
-from app.models import UserModel, UserVerificationToken
+from app.models import User, UserVerificationToken
 from sqlalchemy.orm import Session
 import os
 from app.config.oauth2 import oauth2_secret_key, oauth2_algorithm, oauth2_access_token_expiry
@@ -89,7 +89,7 @@ def verify_access_token(token: str):
 # Dependency to get current user based on JWT token
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     user_id = verify_access_token(token)
-    user = db.query(UserModel).filter(UserModel.id == int(user_id.user_id)).first()
+    user = db.query(User).filter(User.id == int(user_id.user_id)).first()
     return user
 
 
@@ -101,7 +101,7 @@ def create_user_verification_token(user_id: int, type: str, size: int = None, va
         "type": type,
         "token": v_token,
         "token_expiry": v_token_expiry,
-        "is_verified": False
+        "is_used": False
     }
     token = UserVerificationToken(**data)
     db.add(token)

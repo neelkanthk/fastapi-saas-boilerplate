@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.user import UserProfileResponse, UserProfileUpdateRequest, UpdatePasswordRequest, UserProfileCreateRequest, UpdatePasswordResponse
 from app.utils import auth as auth_util
-from app.models import UserModel, UserProfile
+from app.models import User, UserProfile
 from sqlalchemy.orm import Session
 from app.config import database
 
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/user", tags=["User"])
 
 
 @router.get("/profile", response_model=UserProfileResponse, status_code=status.HTTP_200_OK)
-def get_user(current_user: UserModel = Depends(auth_util.get_current_user)):
+def get_user(current_user: User = Depends(auth_util.get_current_user)):
     profile = current_user.profile
     return {
         "id": current_user.id,
@@ -26,7 +26,7 @@ def get_user(current_user: UserModel = Depends(auth_util.get_current_user)):
 
 
 @router.post('/profile')
-def create_user_profile(payload: UserProfileCreateRequest, current_user: UserModel = Depends(auth_util.get_current_user), db: Session = Depends(database.get_db)):
+def create_user_profile(payload: UserProfileCreateRequest, current_user: User = Depends(auth_util.get_current_user), db: Session = Depends(database.get_db)):
     user_profile = UserProfile(user_id=current_user.id, full_name=payload.full_name, country=payload.country)
     db.add(user_profile)
 
@@ -40,7 +40,7 @@ def create_user_profile(payload: UserProfileCreateRequest, current_user: UserMod
 
 
 @router.put("/profile")
-def update_user_profile(payload: UserProfileUpdateRequest, current_user: UserModel = Depends(auth_util.get_current_user), db: Session = Depends(database.get_db)):
+def update_user_profile(payload: UserProfileUpdateRequest, current_user: User = Depends(auth_util.get_current_user), db: Session = Depends(database.get_db)):
     current_user.profile.full_name = payload.full_name
     current_user.profile.country = payload.country
     user_profile = current_user.profile
@@ -57,7 +57,7 @@ def update_user_profile(payload: UserProfileUpdateRequest, current_user: UserMod
 
 
 @router.put('/update-password', status_code=status.HTTP_200_OK)
-def update_password(payload: UpdatePasswordRequest, current_user: UserModel = Depends(auth_util.get_current_user), db: Session = Depends(database.get_db)):
+def update_password(payload: UpdatePasswordRequest, current_user: User = Depends(auth_util.get_current_user), db: Session = Depends(database.get_db)):
     if auth_util.verify_password(payload.old_password, current_user.password):
         current_user.password = auth_util.hash_password(payload.new_password)
         db.add(current_user)

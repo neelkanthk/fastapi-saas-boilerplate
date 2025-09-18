@@ -1,23 +1,37 @@
 from app.config.database import Base
 from sqlalchemy import Column, INTEGER, VARCHAR, TEXT, BOOLEAN, TIMESTAMP, ForeignKey, Enum, JSON, Float
 from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
 
 
-class UserModel(Base):
+class User(Base):
     __tablename__ = 'users'
     id = Column(INTEGER, primary_key=True, nullable=False)
     email = Column(VARCHAR(255), nullable=False, unique=True)
     password = Column(VARCHAR(255), nullable=False)
     is_verified = Column(BOOLEAN, nullable=False, server_default='false')
-    refresh_token = Column(VARCHAR(255), nullable=True)
-    refresh_token_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
-    last_login = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_login_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     profile = relationship('UserProfile', uselist=False, backref='user', cascade='all, delete-orphan')
-    subscriptions = relationship('Subscription', uselist=False, backref='user', cascade='all, delete-orphan')
+    subscription = relationship('Subscription', uselist=False, backref='user', cascade='all, delete-orphan')
     notifications = relationship('Notification', backref='user', cascade='all, delete-orphan')
+    sessions = relationship('UserSession', backref="user", cascade='all, delete-orphan')
+
+    def user(self, id: int):
+        return self if self.id == id else None
+
+
+class UserSession(Base):
+    __tablename__ = 'user_sessions'
+    id = Column(INTEGER, nullable=False, primary_key=True)
+    user_id = Column(INTEGER, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    refresh_token = Column(VARCHAR(255), nullable=True)
+    refresh_token_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
+    device_info = Column(VARCHAR(255), nullable=True)
+    ip_address = Column(VARCHAR(255), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
 
 
 class UserProfile(Base):
@@ -32,15 +46,31 @@ class UserProfile(Base):
 
 
 class UserVerificationToken(Base):
-    __tablename__ = 'user_verification_token'
+    __tablename__ = 'user_verification_tokens'
     id = Column(INTEGER, primary_key=True, nullable=False)
     user_id = Column(INTEGER, nullable=False)
     type = Column(Enum('new_signup', 'password_reset', name='user_verification_request_type_enum'), nullable=False)
     token = Column(VARCHAR(255), nullable=True)
     token_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
-    is_verified = Column(BOOLEAN, nullable=True)
+    is_used = Column(BOOLEAN, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    def is_valid(self, type: str):
+        if (
+            self.type == type
+            and self.is_used == False
+            and self.token_expiry > datetime.now(timezone.utc)
+        ):
+            return True
+        else:
+            return False
+
+    def invalidate(self):
+        self.is_used = True
+        self.token = None
+        self.updated_at = datetime.now(timezone.utc)
+        return self
 
 
 class Subscription(Base):
@@ -88,62 +118,3 @@ class FailedJobs(Base):
     job_id = Column(INTEGER, ForeignKey('jobs.id', ondelete='CASCADE'), nullable=False)
     error_message = Column(TEXT, nullable=True)
     failed_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
-
-
-class Analytics(Base):
-    __tablename__ = 'analytics'
-
-    id = Column(INTEGER, primary_key=True, nullable=False)
-    timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
-
-    # User metrics
-    total_users = Column(INTEGER, nullable=False)
-    active_users_daily = Column(INTEGER, nullable=False)
-    active_users_weekly = Column(INTEGER, nullable=False)
-    active_users_monthly = Column(INTEGER, nullable=False)
-    pro_users = Column(INTEGER, nullable=False)
-    free_users = Column(INTEGER, nullable=False)
-
-    # Domain metrics
-    total_domains = Column(INTEGER, nullable=False)
-    verified_domains = Column(INTEGER, nullable=False)
-    pending_domains = Column(INTEGER, nullable=False)
-
-    # Scan metrics
-    total_scans = Column(INTEGER, nullable=False)
-    scans_today = Column(INTEGER, nullable=False)
-    scans_this_week = Column(INTEGER, nullable=False)
-    scans_this_month = Column(INTEGER, nullable=False)
-    average_scan_duration = Column(Float, nullable=True)
-    failed_scans_count = Column(INTEGER, nullable=False)
-    scan_success_rate = Column(Float, nullable=True)
-
-    # Report metrics
-    total_reports = Column(INTEGER, nullable=False)
-    average_performance_score = Column(Float, nullable=True)
-    average_seo_score = Column(Float, nullable=True)
-    average_accessibility_score = Column(Float, nullable=True)
-    average_best_practices_score = Column(Float, nullable=True)
-    average_security_score = Column(Float, nullable=True)
-    average_pwa_score = Column(Float, nullable=True)
-
-    # API Usage metrics
-    total_lighthouse_api_calls = Column(INTEGER, nullable=False)
-    total_openai_api_calls = Column(INTEGER, nullable=False)
-    average_openai_response_time = Column(Float, nullable=True)
-
-    # Business metrics
-    total_revenue = Column(Float, nullable=False)
-    mrr = Column(Float, nullable=False)  # Monthly Recurring Revenue
-    conversion_rate = Column(Float, nullable=True)
-    churn_rate = Column(Float, nullable=True)
-
-    # System metrics
-    average_response_time = Column(Float, nullable=True)
-    error_count = Column(INTEGER, nullable=False)
-
-    # Detailed breakdowns (JSON columns for flexibility)
-    user_geographic_distribution = Column(JSON, nullable=True)
-    scan_type_distribution = Column(JSON, nullable=True)
-    error_distribution = Column(JSON, nullable=True)
-    subscription_distribution = Column(JSON, nullable=True)
