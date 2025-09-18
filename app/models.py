@@ -5,21 +5,18 @@ from sqlalchemy.orm import relationship
 
 class UserModel(Base):
     __tablename__ = 'users'
-
     id = Column(INTEGER, primary_key=True, nullable=False)
     email = Column(VARCHAR(255), nullable=False, unique=True)
-    phone = Column(VARCHAR(20), nullable=True)
     password = Column(VARCHAR(255), nullable=False)
     is_verified = Column(BOOLEAN, nullable=False, server_default='false')
-    verification_token = Column(VARCHAR(255), nullable=True)
-    verification_token_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
     refresh_token = Column(VARCHAR(255), nullable=True)
     refresh_token_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_login = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
-    domains = relationship('Domain', backref='user', cascade='all, delete-orphan')
-    subscription = relationship('Subscription', uselist=False, backref='user', cascade='all, delete-orphan')
+    profile = relationship('UserProfile', uselist=False, backref='user', cascade='all, delete-orphan')
+    subscriptions = relationship('Subscription', uselist=False, backref='user', cascade='all, delete-orphan')
     notifications = relationship('Notification', backref='user', cascade='all, delete-orphan')
 
 
@@ -30,6 +27,18 @@ class UserProfile(Base):
     user_id = Column(INTEGER, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
     full_name = Column(VARCHAR(255), nullable=True)
     country = Column(VARCHAR(255), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+
+class UserVerificationToken(Base):
+    __tablename__ = 'user_verification_token'
+    id = Column(INTEGER, primary_key=True, nullable=False)
+    user_id = Column(INTEGER, nullable=False)
+    type = Column(Enum('new_signup', 'password_reset', name='user_verification_request_type_enum'), nullable=False)
+    token = Column(VARCHAR(255), nullable=True)
+    token_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
+    is_verified = Column(BOOLEAN, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
@@ -66,7 +75,6 @@ class Notification(Base):
 class Jobs(Base):
     __tablename__ = 'jobs'
     id = Column(INTEGER, primary_key=True, nullable=False)
-    scan_id = Column(INTEGER, ForeignKey('scans.id', ondelete='CASCADE'), nullable=False)
     priority = Column(INTEGER, nullable=False, server_default='0')
     retries = Column(INTEGER, nullable=False, server_default='0')
     max_retries = Column(INTEGER, nullable=False, server_default='3')
@@ -77,7 +85,7 @@ class Jobs(Base):
 class FailedJobs(Base):
     __tablename__ = 'failed_jobs'
     id = Column(INTEGER, primary_key=True, nullable=False)
-    scan_id = Column(INTEGER, ForeignKey('scans.id', ondelete='CASCADE'), nullable=False)
+    job_id = Column(INTEGER, ForeignKey('jobs.id', ondelete='CASCADE'), nullable=False)
     error_message = Column(TEXT, nullable=True)
     failed_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default='now()')
 

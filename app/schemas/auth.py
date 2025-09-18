@@ -30,3 +30,12 @@ class RefreshTokenRequest(BaseModel):
 
 class TokenData(BaseModel):
     user_id: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+    token: str

@@ -2,11 +2,10 @@ from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
 import jwt
 from app.schemas.auth import TokenData
 from fastapi.security import OAuth2PasswordBearer
-from app.models import UserModel
+from app.models import UserModel, UserVerificationToken
 from sqlalchemy.orm import Session
 import os
 from app.config.oauth2 import oauth2_secret_key, oauth2_algorithm, oauth2_access_token_expiry
@@ -82,7 +81,7 @@ def verify_access_token(token: str):
         token_data = TokenData(user_id=user_id)
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Invalid credentials2",
+                            detail="Invalid credentials",
                             headers={"WWW-Authenticate": "Bearer"})
     return token_data
 
@@ -94,8 +93,27 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
-# Utility function to create email verification token
-def create_email_verification_token():
-    v_token = os.urandom(64).hex()
-    v_expiry = datetime.now(timezone.utc) + timedelta(hours=24)  # Token valid for 24 hours
-    return v_token, v_expiry
+# Utility function to create and store multipurpose user verification token
+def create_user_verification_token(user_id: int, type: str, size: int = None, validity: int = None, db: Session = Depends(database.get_db)):
+    v_token, v_token_expiry = generate_random_token(size, validity)
+    data = {
+        "user_id": user_id,
+        "type": type,
+        "token": v_token,
+        "token_expiry": v_token_expiry,
+        "is_verified": False
+    }
+    token = UserVerificationToken(**data)
+    db.add(token)
+    try:
+        db.commit()
+        return v_token
+    except:
+        db.rollback()
+        raise Exception()
+
+
+def generate_random_token(size: int = 64, validity: int = 24):
+    token = os.urandom(size).hex()
+    expiry = datetime.now(timezone.utc) + timedelta(hours=validity)
+    return token, expiry
