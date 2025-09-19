@@ -20,7 +20,6 @@ def get_user(current_user: User = Depends(auth_util.get_current_user)):
         "country": profile.country if profile else None,
         "created_at": current_user.created_at,
         "updated_at": current_user.updated_at,
-        "subscriptions": current_user.subscriptions,
         "notifications": current_user.notifications
     }
 
